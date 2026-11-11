@@ -1,0 +1,29 @@
+# Binaries and compiled outputs
+*.exe
+*.o
+*.obj
+*.pyd
+*.dll
+*.so
+*.dylib
+a.exe
+simulator.exe
+bounded_ring_core.*.pyd
+
+# Build directories
+build/
+bin/
+out/
+
+# IDE and Editor configurations
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln.docstates
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.log

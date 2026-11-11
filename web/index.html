@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BoundedRing Packet Tracer & Cryptographic Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .ring-canvas {
+            background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: 0 0 25px rgba(96, 165, 250, 0.8); }
+        }
+        .crypto-active {
+            animation: pulse-glow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-blue-400">BoundedRing Packet Tracer & Cryptographic Visualizer</h1>
+                <p class="text-slate-400 text-sm">Real-time Consistent Hashing, SHA-256 Checksum Verification & Clockwise Skip Routing</p>
+            </div>
+            <div class="flex gap-3">
+                <button id="reset-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-sm font-medium border border-slate-700 transition">Reset System</button>
+            </div>
+        </header>
+
+        <!-- Cryptographic Inspection & Payload Pipeline Bar -->
+        <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 crypto-active">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-700/60 pb-2">
+                <div class="flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <h2 class="text-md font-bold text-slate-200 tracking-wide uppercase">Cryptographic Message Inspection Pipeline</h2>
+                </div>
+                <span id="crypto-status-badge" class="bg-blue-500/20 text-blue-400 border border-blue-500/40 text-xs px-2.5 py-1 rounded font-mono">STANDBY</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-mono">
+                <!-- Step 1: Plaintext Message -->
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700/80 space-y-1">
+                    <div class="text-slate-400 font-semibold uppercase text-[11px] flex items-center justify-between">
+                        <span>1. Plaintext Payload</span>
+                        <span class="text-blue-400">RAW</span>
+                    </div>
+                    <div id="disp-raw-msg" class="text-amber-300 font-medium truncate text-sm" title="None">"Hello, BoundedRing!"</div>
+                    <div class="text-[10px] text-slate-400">Key: <span id="disp-key" class="text-slate-200">pkt-demo-101</span></div>
+                </div>
+
+                <!-- Step 2: SHA-256 / FNV-1a Hashing -->
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700/80 space-y-1">
+                    <div class="text-slate-400 font-semibold uppercase text-[11px] flex items-center justify-between">
+                        <span>2. Hash & Checksum</span>
+                        <span class="text-purple-400">SHA-256</span>
+                    </div>
+                    <div id="disp-checksum" class="text-emerald-400 font-bold truncate text-sm" title="Pending">e4b7a192c0fa88de</div>
+                    <div class="text-[10px] text-slate-400">64-bit Int: <span id="disp-hash64" class="text-purple-300">14695981039...</span></div>
+                </div>
+
+                <!-- Step 3: Ring Angle Coordinate -->
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700/80 space-y-1">
+                    <div class="text-slate-400 font-semibold uppercase text-[11px] flex items-center justify-between">
+                        <span>3. Ring Position</span>
+                        <span class="text-cyan-400">DEGREE</span>
+                    </div>
+                    <div id="disp-angle" class="text-cyan-300 font-bold text-sm">214° on 360° Ring</div>
+                    <div class="text-[10px] text-slate-400">Target VNode: <span id="disp-target-vnode" class="text-slate-200">Server-2#vnode_1</span></div>
+                </div>
+
+                <!-- Step 4: Final Routed Server & Encryption Tag -->
+                <div class="bg-slate-900 p-3 rounded-lg border border-slate-700/80 space-y-1">
+                    <div class="text-slate-400 font-semibold uppercase text-[11px] flex items-center justify-between">
+                        <span>4. Delivery Node</span>
+                        <span id="disp-routing-badge" class="text-emerald-400">DIRECT HIT</span>
+                    </div>
+                    <div id="disp-dest-server" class="text-emerald-300 font-bold text-sm truncate">Server-2</div>
+                    <div class="text-[10px] text-slate-400">Hops / Skips: <span id="disp-hops" class="text-yellow-400 font-bold">0 skips</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Controls & Transmission Log -->
+            <div class="space-y-6">
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4">
+                    <h2 class="text-lg font-semibold text-slate-200">Simulation Controls</h2>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Server Max Capacity (Bounded Limit)</label>
+                        <input type="number" id="capacity-input" value="3" min="1" max="50" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-100">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="add-server-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-3 rounded text-sm font-medium transition">+ Add Server</button>
+                        <button id="remove-server-btn" class="bg-rose-600 hover:bg-rose-500 text-white py-2 px-3 rounded text-sm font-medium transition">- Remove Server</button>
+                    </div>
+
+                    <div class="border-t border-slate-700 pt-4 space-y-3">
+                        <label class="block text-xs font-medium text-slate-400">Send Encrypted Payload</label>
+                        <div>
+                            <input type="text" id="msg-key-input" placeholder="Message Key (e.g. user_session_42)" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-100 mb-2">
+                            <input type="text" id="msg-payload-input" placeholder="Message Payload (e.g. Confidential_User_Data)" class="w-full bg-slate-900 border border-slate-700 rounded p-2 text-sm text-slate-100">
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="route-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium transition">Encrypt & Transmit</button>
+                        </div>
+                        <button id="batch-btn" class="w-full bg-purple-600 hover:bg-purple-500 text-white py-2 rounded text-sm font-medium transition">Send Stream (8 Messages)</button>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-lg font-semibold text-slate-200">Packet Transmission Trace</h2>
+                        <span class="text-xs text-slate-400 font-mono">Live Wireshark Style</span>
+                    </div>
+                    <div id="trace-log" class="bg-slate-950 p-3 rounded-lg text-xs font-mono h-56 overflow-y-auto space-y-1 text-slate-300">
+                        <p class="text-slate-500">// Packet delivery logs and hash verification traces will appear here...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Virtual Ring Canvas with Cisco-Style Packet Animation -->
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex flex-col items-center justify-center relative">
+                <div class="w-full flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-semibold text-slate-200">Consistent Hash Ring</h2>
+                    <span class="text-xs text-slate-400 font-mono">Clockwise Skip Probe</span>
+                </div>
+                <canvas id="ringCanvas" width="400" height="400" class="ring-canvas rounded-full border border-slate-700 shadow-inner"></canvas>
+                <div class="text-xs text-slate-400 mt-3 text-center flex flex-wrap justify-center gap-3">
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-blue-500 mr-1"></span> Virtual Node</span>
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-yellow-400 mr-1"></span> Encrypted Packet</span>
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-emerald-400 mr-1"></span> Accepted</span>
+                    <span><span class="inline-block w-3 h-3 rounded-full bg-rose-500 mr-1"></span> Full / Skipped</span>
+                </div>
+            </div>
+
+            <!-- Analytics & Storage Status Chart -->
+            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-200 mb-4">Server Load & Storage Distribution</h2>
+                    <div class="h-60">
+                        <canvas id="loadChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 mt-4 space-y-2">
+                    <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Distributed Node Metrics</h3>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><span class="text-slate-400">Physical Servers:</span> <strong id="metric-servers" class="text-blue-400">0</strong></div>
+                        <div><span class="text-slate-400">Virtual Nodes:</span> <strong id="metric-vnodes" class="text-purple-400">0</strong></div>
+                        <div><span class="text-slate-400">Delivered Packets:</span> <strong id="metric-messages" class="text-emerald-400">0</strong></div>
+                        <div><span class="text-slate-400">Overflow Drops:</span> <strong id="metric-overflows" class="text-rose-400">0</strong></div>
+                    </div>
+                </div>
+
+                <!-- Live Message Decryption Drawer -->
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-700/60 mt-3 text-xs">
+                    <div class="text-slate-400 font-semibold uppercase text-[10px] mb-1">Latest Stored Message Verification:</div>
+                    <div id="latest-storage-item" class="text-slate-300 font-mono break-all text-[11px]">
+                        No messages currently stored.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // FNV-1a 64-bit hash function matching the C++ hash_fn
+        function fnv1a64(str) {
+            let hash = 14695981039346656037n;
+            const prime = 1099511628211n;
+            for (let i = 0; i < str.length; i++) {
+                hash ^= BigInt(str.charCodeAt(i));
+                hash = (hash * prime) & 0xFFFFFFFFFFFFFFFFn; // Keep within 64-bit unsigned
+            }
+            return hash;
+        }
+
+        // SHA-256 Checksum Simulator (Produces 16-hex matching C++ compute_sha256)
+        function computeSha256Checksum(payload) {
+            const h = fnv1a64("SHA256_" + payload);
+            return h.toString(16).padStart(16, '0');
+        }
+
+        // Map 64-bit hash onto 360-degree circular ring
+        function hashToAngle(key) {
+            const h = fnv1a64(key);
+            return Number(h % 360n);
+        }
+
+        class RingRouter {
+            constructor(vnodesPerServer = 4) {
+                this.vnodesPerServer = vnodesPerServer;
+                this.servers = new Set();
+                this.ring = [];
+                this.serverLoads = {};
+                this.serverStorage = {}; // serverId -> array of { key, payload, checksum }
+                this.capacity = 3;
+                this.totalRouted = 0;
+                this.overflows = 0;
+            }
+
+            addServer(serverId) {
+                if (this.servers.has(serverId)) return;
+                this.servers.add(serverId);
+                this.serverLoads[serverId] = 0;
+                this.serverStorage[serverId] = [];
+
+                for (let i = 0; i < this.vnodesPerServer; i++) {
+                    const vnodeKey = `${serverId}#vnode_${i}`;
+                    const angle = hashToAngle(vnodeKey);
+                    this.ring.push({ angle, serverId, vnodeKey });
+                }
+                this.ring.sort((a, b) => a.angle - b.angle);
+            }
+
+            removeServer(serverId) {
+                if (!this.servers.has(serverId)) return;
+                this.servers.delete(serverId);
+                delete this.serverLoads[serverId];
+                delete this.serverStorage[serverId];
+                this.ring = this.ring.filter(vn => vn.serverId !== serverId);
+            }
+
+            route(key, payload) {
+                if (this.ring.length === 0) return { status: 'NO_SERVERS' };
+
+                const checksum = computeSha256Checksum(payload);
+                const msgAngle = hashToAngle(key);
+                const rawHash = fnv1a64(key).toString();
+
+                let startIdx = this.ring.findIndex(vn => vn.angle >= msgAngle);
+                if (startIdx === -1) startIdx = 0;
+
+                let currIdx = startIdx;
+                let steps = [];
+
+                while (true) {
+                    const targetNode = this.ring[currIdx];
+                    const targetServer = targetNode.serverId;
+                    const isFull = this.serverLoads[targetServer] >= this.capacity;
+
+                    steps.push({
+                        serverId: targetServer,
+                        vnodeKey: targetNode.vnodeKey,
+                        angle: targetNode.angle,
+                        isFull: isFull
+                    });
+
+                    if (!isFull) {
+                        this.serverLoads[targetServer]++;
+                        const storedMsg = { key, payload, checksum, time: new Date().toLocaleTimeString() };
+                        this.serverStorage[targetServer].push(storedMsg);
+                        this.totalRouted++;
+
+                        return {
+                            status: 'SUCCESS',
+                            server: targetServer,
+                            angle: msgAngle,
+                            hash64: rawHash,
+                            checksum: checksum,
+                            targetVNode: targetNode.vnodeKey,
+                            steps: steps,
+                            storedMsg: storedMsg
+                        };
+                    }
+
+                    currIdx = (currIdx + 1) % this.ring.length;
+                    if (currIdx === startIdx) {
+                        this.overflows++;
+                        return {
+                            status: 'OVERFLOW',
+                            angle: msgAngle,
+                            hash64: rawHash,
+                            checksum: checksum,
+                            steps: steps
+                        };
+                    }
+                }
+            }
+        }
+
+        const router = new RingRouter(4);
+        const animatedPackets = [];
+
+        const canvas = document.getElementById('ringCanvas');
+        const ctx = canvas.getContext('2d');
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const radius = 140;
+
+        // Packet Animation Class
+        class AnimatedPacket {
+            constructor(key, payload, routeResult) {
+                this.key = key;
+                this.payload = payload;
+                this.routeResult = routeResult;
+                this.steps = routeResult.steps || [];
+                this.stepIndex = 0;
+                this.progress = 0;
+                this.completed = false;
+
+                this.currentX = cx;
+                this.currentY = cy;
+            }
+
+            update() {
+                if (this.completed || this.steps.length === 0) return;
+
+                this.progress += 0.05;
+
+                const targetAngle = this.steps[this.stepIndex].angle;
+                const targetRad = (targetAngle * Math.PI) / 180;
+                const targetX = cx + radius * Math.cos(targetRad);
+                const targetY = cy + radius * Math.sin(targetRad);
+
+                if (this.stepIndex === 0) {
+                    // Center router to first Ring VNode
+                    this.currentX = cx + (targetX - cx) * this.progress;
+                    this.currentY = cy + (targetY - cy) * this.progress;
+                } else {
+                    // Clockwise hop across nodes
+                    const prevAngle = this.steps[this.stepIndex - 1].angle;
+                    let diffAngle = targetAngle - prevAngle;
+                    if (diffAngle < 0) diffAngle += 360;
+
+                    const currentAngle = prevAngle + diffAngle * this.progress;
+                    const currentRad = (currentAngle * Math.PI) / 180;
+                    this.currentX = cx + radius * Math.cos(currentRad);
+                    this.currentY = cy + radius * Math.sin(currentRad);
+                }
+
+                if (this.progress >= 1.0) {
+                    this.progress = 0;
+                    this.stepIndex++;
+                    if (this.stepIndex >= this.steps.length) {
+                        this.completed = true;
+                        updateUI();
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (this.completed) return;
+
+                ctx.save();
+                ctx.translate(this.currentX, this.currentY);
+                
+                // Outer Glow Effect
+                ctx.beginPath();
+                ctx.arc(0, 0, 11, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(250, 204, 21, 0.45)';
+                ctx.fill();
+
+                // Envelope Body
+                ctx.fillStyle = '#facc15';
+                ctx.fillRect(-8, -6, 16, 12);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(-8, -6, 16, 12);
+
+                // Flap Lines
+                ctx.beginPath();
+                ctx.moveTo(-8, -6);
+                ctx.lineTo(0, 1);
+                ctx.lineTo(8, -6);
+                ctx.strokeStyle = '#854d0e';
+                ctx.stroke();
+
+                // Lock icon symbol (indicates encrypted payload)
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-2, 0, 4, 4);
+
+                ctx.restore();
+            }
+        }
+
+        function drawRing() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Center Router
+            ctx.beginPath();
+            ctx.arc(cx, cy, 24, 0, 2 * Math.PI);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.fillStyle = '#60a5fa';
+            ctx.font = 'bold 9px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('ROUTER', cx, cy + 3);
+
+            // Main Hash Ring Circle
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Draw Virtual Nodes
+            router.ring.forEach(vn => {
+                const rad = (vn.angle * Math.PI) / 180;
+                const x = cx + radius * Math.cos(rad);
+                const y = cy + radius * Math.sin(rad);
+
+                const isFull = router.serverLoads[vn.serverId] >= router.capacity;
+
+                ctx.beginPath();
+                ctx.arc(x, y, 7, 0, 2 * Math.PI);
+                ctx.fillStyle = isFull ? '#ef4444' : '#3b82f6';
+                ctx.fill();
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Server Label
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '8px monospace';
+                ctx.textAlign = 'center';
+                const labelX = cx + (radius + 16) * Math.cos(rad);
+                const labelY = cy + (radius + 16) * Math.sin(rad);
+                ctx.fillText(vn.serverId.replace('Server_', 'S_'), labelX, labelY);
+            });
+
+            // Draw Active Packets
+            animatedPackets.forEach(pkt => {
+                pkt.update();
+                pkt.draw(ctx);
+            });
+        }
+
+        function animateLoop() {
+            drawRing();
+            requestAnimationFrame(animateLoop);
+        }
+        requestAnimationFrame(animateLoop);
+
+        // Chart Setup
+        const chartCtx = document.getElementById('loadChart').getContext('2d');
+        const loadChart = new Chart(chartCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Server Load',
+                    data: [],
+                    backgroundColor: '#60a5fa',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        max: 6,
+                        grid: { color: '#334155' }, 
+                        ticks: { color: '#94a3b8', stepSize: 1 } 
+                    },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const serverName = context.label;
+                                const msgs = router.serverStorage[serverName] || [];
+                                return `Stored (${msgs.length}/${router.capacity}): ` + msgs.map(m => m.key).join(', ');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        function updateUI() {
+            document.getElementById('metric-servers').innerText = router.servers.size;
+            document.getElementById('metric-vnodes').innerText = router.ring.length;
+            document.getElementById('metric-messages').innerText = router.totalRouted;
+            document.getElementById('metric-overflows').innerText = router.overflows;
+
+            loadChart.data.labels = Array.from(router.servers);
+            loadChart.data.datasets[0].data = Array.from(router.servers).map(s => router.serverLoads[s]);
+            loadChart.options.scales.y.max = Math.max(router.capacity + 2, 5);
+            loadChart.update();
+        }
+
+        function logTrace(msg, colorClass = "text-slate-300") {
+            const logBox = document.getElementById('trace-log');
+            const entry = document.createElement('p');
+            entry.className = colorClass;
+            entry.innerText = msg;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function updateCryptoPipeline(key, payload, res) {
+            document.getElementById('disp-raw-msg').innerText = `"${payload}"`;
+            document.getElementById('disp-raw-msg').title = payload;
+            document.getElementById('disp-key').innerText = key;
+            document.getElementById('disp-checksum').innerText = res.checksum;
+            document.getElementById('disp-hash64').innerText = res.hash64.slice(0, 14) + "...";
+            document.getElementById('disp-angle').innerText = `${res.angle}° on 360° Ring`;
+
+            const badge = document.getElementById('crypto-status-badge');
+            const routingBadge = document.getElementById('disp-routing-badge');
+            const destServer = document.getElementById('disp-dest-server');
+            const hops = document.getElementById('disp-hops');
+            const targetVNode = document.getElementById('disp-target-vnode');
+
+            if (res.status === 'SUCCESS') {
+                const skips = res.steps.length - 1;
+                badge.innerText = "AUTHENTICATED & ROUTED";
+                badge.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs px-2.5 py-1 rounded font-mono";
+
+                routingBadge.innerText = skips === 0 ? "DIRECT HIT" : `SKIPPED ${skips} FULL`;
+                routingBadge.className = skips === 0 ? "text-emerald-400 font-bold" : "text-amber-400 font-bold";
+
+                destServer.innerText = res.server;
+                destServer.className = "text-emerald-300 font-bold text-sm truncate";
+                hops.innerText = `${skips} skip(s)`;
+                targetVNode.innerText = res.targetVNode;
+
+                // Update Storage Inspector Drawer
+                document.getElementById('latest-storage-item').innerHTML = `
+                    <div class="text-emerald-400 font-semibold">Node: ${res.server}</div>
+                    <div>Key: <span class="text-blue-300">${res.storedMsg.key}</span></div>
+                    <div>Checksum: <span class="text-purple-300">${res.storedMsg.checksum}</span></div>
+                    <div>Payload: <span class="text-amber-200">"${res.storedMsg.payload}"</span></div>
+                `;
+            } else if (res.status === 'OVERFLOW') {
+                badge.innerText = "DROPPED (OVERFLOW)";
+                badge.className = "bg-rose-500/20 text-rose-400 border border-rose-500/40 text-xs px-2.5 py-1 rounded font-mono";
+                routingBadge.innerText = "OVERFLOW";
+                routingBadge.className = "text-rose-400 font-bold";
+                destServer.innerText = "NONE (ALL FULL)";
+                destServer.className = "text-rose-400 font-bold text-sm";
+                hops.innerText = `${res.steps.length} skips`;
+                targetVNode.innerText = "All ring nodes at capacity bound";
+            }
+        }
+
+        function dispatchPacket(key, payload) {
+            const res = router.route(key, payload);
+            animatedPackets.push(new AnimatedPacket(key, payload, res));
+            updateCryptoPipeline(key, payload, res);
+
+            if (res.status === 'SUCCESS') {
+                const skips = res.steps.length - 1;
+                if (skips === 0) {
+                    logTrace(`[✉ SECURE DIRECT HIT] Key '${key}' (SHA256: ${res.checksum}) -> Stored on ${res.server} (Load: ${router.serverLoads[res.server]}/${router.capacity})`, "text-emerald-400");
+                } else {
+                    logTrace(`[↷ SKIPPED ${skips} FULL NODE(S)] Key '${key}' -> Clockwise routed to ${res.server} (Load: ${router.serverLoads[res.server]}/${router.capacity})`, "text-amber-300");
+                }
+            } else if (res.status === 'OVERFLOW') {
+                logTrace(`[✖ OVERFLOW DROP] Key '${key}' -> Probed all servers, all are at max capacity (${router.capacity})!`, "text-rose-400 font-bold");
+            }
+        }
+
+        // Event Listeners
+        let serverCounter = 1;
+        document.getElementById('add-server-btn').addEventListener('click', () => {
+            const id = `Server_${serverCounter++}`;
+            router.addServer(id);
+            logTrace(`[+] Added ${id} with 4 virtual nodes.`);
+            updateUI();
+        });
+
+        document.getElementById('remove-server-btn').addEventListener('click', () => {
+            if (router.servers.size === 0) return;
+            const lastServer = Array.from(router.servers).pop();
+            router.removeServer(lastServer);
+            logTrace(`[-] Removed ${lastServer}.`, "text-amber-400");
+            updateUI();
+        });
+
+        document.getElementById('capacity-input').addEventListener('change', (e) => {
+            router.capacity = parseInt(e.target.value) || 3;
+            logTrace(`[*] Updated max capacity bound to ${router.capacity}`);
+            updateUI();
+        });
+
+        document.getElementById('route-btn').addEventListener('click', () => {
+            const keyInput = document.getElementById('msg-key-input');
+            const payloadInput = document.getElementById('msg-payload-input');
+
+            const key = keyInput.value.trim() || `pkt-${Math.floor(Math.random() * 1000)}`;
+            const payload = payloadInput.value.trim() || `Data_Payload_${Math.floor(Math.random() * 9000 + 1000)}`;
+
+            keyInput.value = '';
+            payloadInput.value = '';
+            dispatchPacket(key, payload);
+        });
+
+        document.getElementById('batch-btn').addEventListener('click', () => {
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const rnd = Math.floor(Math.random() * 5000);
+                    dispatchPacket(`stream_key_${rnd}`, `Confidential_Stream_Payload_${i + 1}`);
+                }, i * 350);
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            router.servers.clear();
+            router.ring = [];
+            router.serverLoads = {};
+            router.serverStorage = {};
+            router.totalRouted = 0;
+            router.overflows = 0;
+            animatedPackets.length = 0;
+            serverCounter = 1;
+            document.getElementById('trace-log').innerHTML = '<p class="text-slate-500">// Packet delivery logs and hash verification traces will appear here...</p>';
+            document.getElementById('latest-storage-item').innerText = 'No messages currently stored.';
+            document.getElementById('disp-raw-msg').innerText = '"None"';
+            document.getElementById('disp-checksum').innerText = 'None';
+            document.getElementById('crypto-status-badge').innerText = 'STANDBY';
+            document.getElementById('crypto-status-badge').className = 'bg-blue-500/20 text-blue-400 border border-blue-500/40 text-xs px-2.5 py-1 rounded font-mono';
+            
+            // Re-seed default 4 servers
+            router.addServer('Server_Alpha');
+            router.addServer('Server_Beta');
+            router.addServer('Server_Gamma');
+            router.addServer('Server_Delta');
+            serverCounter = 5;
+            updateUI();
+        });
+
+        // Initialize default 4 Servers matching network topology
+        router.addServer('Server_Alpha');
+        router.addServer('Server_Beta');
+        router.addServer('Server_Gamma');
+        router.addServer('Server_Delta');
+        serverCounter = 5;
+        updateUI();
+    </script>
+</body>
+</html>

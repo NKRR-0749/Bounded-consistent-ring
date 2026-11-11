@@ -1,0 +1,6 @@
+{
+  "Server_Alpha": {"host": "172.29.7.133", "port": 5000},
+  "Server_Beta":  {"host": "172.29.7.133", "port": 5001},
+  "Server_Gamma": {"host": "172.29.7.133", "port": 5002},
+  "Server_Delta": {"host": "172.29.7.133", "port": 5003}
+}
